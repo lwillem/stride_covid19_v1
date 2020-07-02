@@ -1,0 +1,120 @@
+%%!TEX root = ./UserManual.tex
+\chapter{Software}
+\label{chap:software}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% System Requirements
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Source code}
+\label{section:source}
+The source code is maintained in a GitHub repository \url{https://github.com/lwillem/stride}. We use continuous integration via the TravisCI service. Every new revision is built and tested automatically at commit. Results of this proces can be viewed at \url{https://travis-ci.com/github/lwillem/stride}, where you should look for the master branch. The integration status (of the master branch) is flagged in the GitHub repsitory front page for the project. 
+
+Stride is written in C++ and is portable over Linux and Mac OSX platforms that have a sufficiently recent version of a C++ compiler. To build and install \texttt{Stride}, the following tools need to be available on the system:
+\begin{compactitem}
+    \item A fairly recent GNU g++ or LLVM clang++
+    \item make
+    \item A fairly recent CMake
+    \item The Boost library
+    \item Doxygen  and LaTeX (optional, for documentation only)
+\end{compactitem}
+A detailed list of current versions of operating system, compiler, build and run tools can be found in the project root directory in the file \texttt{PLATFORMS.txt}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Installation
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Installation}
+\label{section:Installation}
+
+To install the project, first obtain the source code by cloning the code repository to a directory .
+The build system for \texttt{Stride} uses the \texttt{CMake} tool. This is used to build and install the software at a high level of abstraction and almost platform independent (see \url{http://www.cmake.org/}).
+The project also include a traditional \texttt{make} front to \texttt{CMake}  with 
+For those users that do not have a working knowledge of \texttt{CMake}, a front end \texttt{Makefile} has been provided that invokes the appropriate \texttt{CMake} commands. It provide the conventional targets to ``build'', ``install'', ``test'' and ``clean'' the project trough an invocation of make. There is one additional target ``configure'' to set up the \texttt{CMake}/\texttt{make} structure that will actually do all the work.
+
+More details on building the software can be found in the file \texttt{INSTALL.txt} in the project root directory.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Documentation}
+\label{section:documentation}
+
+The Application Programmer Interface (API) documentation is generated automatically
+using the Doxygen tool (see \url{www.doxygen.org}) from documentation instructions
+embedded in the code . 
+%A copy of this documentation for the latest revision of the code in the GitHub repository can be found online at \url{https://broeckho.github.io/stride/}.
+
+The user manual distributed with the source code has been written in \LaTeX (see \url{www.latex-project.org}).
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Directory layout}
+
+The project directory structure is very systematic.
+Everything used to build the software is stored in the root directory:
+\begin{compactitem}
+    \item \texttt{main}: Code related files (sources, third party libraries and headers, ...)
+      	\begin{itemize}
+        		\item \texttt{main/<language>}: source code, per language: cpp, python, R
+        		\item \texttt{main/resources}: third party resources included in the project:
+        \end{itemize}
+    \item \texttt{doc}: documentation files (API, manual, ...)
+      	\begin{itemize}
+        		\item \texttt{doc/doxygen}: files to generate reference documentation with Doxygen
+        		\item \texttt{doc/latex}: files needed to generate the user manual with Latex
+        \end{itemize}
+    \item \texttt{test}: test related files (scripts, regression files, ...)
+\end{compactitem}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% File formats
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{File formats}
+\label{section:FileFormats}
+
+The Stride software supports different file formats:
+\begin{compactdesc}
+	\item [CSV] \ \\
+	Comma separated values, used for population input data and simulator output.
+	\item [JSON] \ \\
+	JavaScript Object Notation, an open standard format that uses human-readable text to transmit objects consisting of attribute-value pairs. 	 \mbox{(see \url{www.json.org})}
+	\item [TXT] \ \\
+	Text files, for the logger.
+	\item [XML] \ \\
+	Extensible Markup Language, a markup language (both human-readable and machine-readable) that defines a set of rules for encoding documents.
+\end{compactdesc}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Testing}
+Unit tests and install checks are added to Stride based on Google's ``gtest" framework and CMake's ``ctest" tool.
+In addition, the code base contains assertions to verify the simulator logic.
+They are activated when the application is built in debug mode and can be used to catch errors at run time.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Results
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Results}
+\label{section:Results}
+
+The software can generates different output files:
+\begin{compactdesc}
+	\item [cases.csv] \ \\
+	Cumulative number of cases per day.
+	\item [logfile.txt] \ \\
+	Details on transmission and/or social contacts events.
+	\item [summary.csv] (optional) \ \\
+	Aggregated results on the number of cases, configuration details and timings.
+	\item [person.csv] (optional) \ \\
+	Individual details on infection characteristics.
+
+\end{compactdesc}
+
+

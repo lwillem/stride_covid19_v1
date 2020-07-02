@@ -1,0 +1,32 @@
+Package: cascsim
+Title: Casualty Actuarial Society Individual Claim Simulator
+Version: 0.4
+Authors@R: c(
+    person("Robert", "Bear", email = "rbear@reserveprism.com", role = "aut"),
+    person("Kailan", "Shang", email = "klshang81@gmail.com", role = c("aut","cre")),
+    person("Hai", "You", email = "hyou@reserveprism.com", role = "aut"),
+	person("Brian", "Fannin", email = "bfannin@casact.org", role = "ctb"))
+Description: It is an open source insurance claim simulation engine sponsored
+    by the Casualty Actuarial Society. It generates individual insurance claims 
+	including open claims, reopened claims, incurred but not reported claims 
+	and future claims. It also includes claim data fitting functions to help set 
+	simulation assumptions. It is useful for claim level reserving analysis.
+	Parodi (2013) <https://www.actuaries.org.uk/documents/triangle-free-reserving-non-traditional-framework-estimating-reserves-and-reserve-uncertainty>.
+Depends: R (>= 3.4.0)
+Imports: parallel, R2HTML, fitdistrplus, moments, copula,
+        scatterplot3d, methods
+License: GPL-3
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 6.1.1
+Suggests: knitr, rmarkdown
+VignetteBuilder: knitr
+NeedsCompilation: no
+Packaged: 2020-01-12 01:36:22 UTC; Kailan
+Author: Robert Bear [aut],
+  Kailan Shang [aut, cre],
+  Hai You [aut],
+  Brian Fannin [ctb]
+Maintainer: Kailan Shang <klshang81@gmail.com>
+Repository: CRAN
+Date/Publication: 2020-01-13 09:20:13 UTC
