@@ -103,6 +103,8 @@ set(LIBS ${LIBS} sha1)
 #----------------------------------------------------------------------------
 # Boost
 #----------------------------------------------------------------------------
+set(Boost_USE_MULTITHREADED TRUE)     # prevent issues with threaded and unthreaded boost libraries.
+set(Boost_NO_BOOST_CMAKE ON)          # to tell FindBoost not to defer to BoostConfig.cmake.
 find_package(Boost COMPONENTS filesystem date_time)
 if (Boost_FOUND)
     include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
