@@ -47,14 +47,7 @@ inspect_tracing_data <- function(project_dir)
   dim(data_tracing_all)
 
   # add config_id 
-  # get variable names of input_opt_design (fix if only one column)
-  if(ncol(input_opt_design) == 1) {
-    project_summary$config_id  <- project_summary[,colnames(input_opt_design)]
-    input_opt_design           <- data.frame(input_opt_design,config_id = c(input_opt_design))
-  } else{
-    project_summary$config_id  <- apply(project_summary[,names(input_opt_design)],1,paste, collapse='_')
-    input_opt_design$config_id <- apply(input_opt_design,1,paste, collapse='_')
-  }
+  project_summary$config_id <- .rstride$get_config_id(project_summary)
   
   # add config_id to incidence data
   data_tracing_all         <- merge(data_tracing_all,project_summary[,c('exp_id','config_id','start_date')] )

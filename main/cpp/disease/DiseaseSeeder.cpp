@@ -94,7 +94,6 @@ void DiseaseSeeder::ImportInfectedCases(std::shared_ptr<Population> pop, unsigne
         auto&        logger      = pop->RefEventLogger();
         const string log_level   = m_config.get<string>("run.event_log_level", "None");
 
-
         while (numInfected > 0) {
                 Person& p = pop->at(static_cast<size_t>(generator()));
                 if (p.GetHealth().IsSusceptible() && (p.GetAge() >= sAgeMin) && (p.GetAge() <= sAgeMax)) {

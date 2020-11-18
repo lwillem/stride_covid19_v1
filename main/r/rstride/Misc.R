@@ -13,7 +13,7 @@
 #  see http://www.gnu.org/licenses/.
 #
 #
-#  Copyright 2020, Willem L, Kuylen E & Broeckhove J
+#  Copyright 2020, Willem L
 ############################################################################# #
 #
 # HELP FUNCTIONS FOR rSTRIDE PRE- AND POST-PROCESSING                       
@@ -36,9 +36,40 @@ if(!(exists('.rstride'))){
 # ############################# #
 
 # terminate rStride
-.rstride$cli_abort <- function()
+.rstride$cli_abort <- function(message='')
 {
+  if(nchar(message)>0)
+    smd_print(message,WARNING=T)
+  
   smd_print('!! TERMINATE rSTRIDE CONTROLLER !!',WARNING=T)
+}
+
+# get system memory state
+.rstride$print_system_memory_info <- function(par_nodes_info = NA){
+  
+  if (!is.na("par_nodes_info") && (Sys.getpid() == par_nodes_info$pid_master || 
+                                   Sys.getpid() == par_nodes_info$pid_slave1)) {
+  
+    cmd_macos <- 'top -l 1 -s 0 | grep PhysMem'
+    cmd_linux <- 'grep MemFree /proc/meminfo '
+    
+    if(Sys.info()['sysname'] == 'Darwin'){
+      smd_print(system(cmd_macos,intern = T))
+    }
+    
+    if(Sys.info()['sysname'] == 'Linux'){
+      # print in kB
+      # smd_print(system(cmd_linux,intern = T)) 
+      
+      # print in GB
+      mem_out <- system(cmd_linux,intern = T)
+      mem_out <- gsub('MemFree:','',mem_out)
+      mem_out <- gsub(' ','',mem_out)
+      mem_out <- gsub('kB','',mem_out)
+      smd_print('MemFree:',round(as.numeric(mem_out)/1e6),'GB')
+    }  
+  }
+  
 }
 
 ############################# #
@@ -73,11 +104,8 @@ if(!(exists('.rstride'))){
 
 .rstride$create_pdf <- function(project_dir,file_name,width=7,height=7){
   
-  # load project summary
-  project_summary   <- .rstride$load_project_summary(project_dir)
-  
   # get run_tag
-  run_tag           <- unique(project_summary$run_tag)
+  run_tag           <- basename(project_dir)
   
   # get file name with path
   file_name_path    <- file.path(project_dir,paste0(run_tag,'_',file_name,'.pdf'))
@@ -92,11 +120,8 @@ if(!(exists('.rstride'))){
 ############################# #
 .rstride$create_jpg <- function(project_dir,file_name,width=7,height=7){
   
-  # load project summary
-  project_summary   <- .rstride$load_project_summary(project_dir)
-  
   # get run_tag
-  run_tag           <- unique(project_summary$run_tag)
+  run_tag           <- basename(project_dir)
   
   # get file name with path
   file_name_path    <- file.path(project_dir,paste0(run_tag,'_',file_name,'.jpg'))
@@ -138,7 +163,7 @@ if(!(exists('.rstride'))){
 # root_name <- 'disease'
 # output_prefix <- 'sim_output'
 # Save a list in XML format with given root node
-.rstride$save_config_xml <- function(list_config,root_name,output_prefix){
+.rstride$save_config_xml <- function(list_config,root_name,filename){
   
   # setup XML doc (to add prefix)
   xml_doc = newXMLDoc()
@@ -149,20 +174,41 @@ if(!(exists('.rstride'))){
   # add list info
   smd_listToXML(root, list_config)
   
-  # create filename
-  filename <- paste0(output_prefix,'.xml')
-  
   # xml prefix
   xml_prefix <- paste0(' This file is part of the Stride software [', format(Sys.time()), ']')
+  
+  # check filename XML extension, and add if not present
+  if(!grepl('\\.xml',filename)){
+    paste0(filename,'.xml')
+  }
   
   # save as XML,
   # note: if we use an XMLdoc to include prefix, the line break dissapears...
   # fix: http://r.789695.n4.nabble.com/saveXML-prefix-argument-td4678407.html
   cat( saveXML( xml_doc, indent = TRUE, prefix = newXMLCommentNode(xml_prefix)),  file = filename) 
-  
-  # return the filename
-  return(filename)
 }
+
+
+# Read XML and reformat numeric values
+.rstride$read_config_xml <- function(config_exp_filename,sel_exp=NA){
+
+  # read xml file  
+  config_exp <- xmlToList(config_exp_filename)
+
+  # find numeric parameters
+  bool_is_numeric <- suppressWarnings(!is.na(as.numeric(config_exp)))
+  
+  # convert string into numeric
+  config_exp[bool_is_numeric] <- as.numeric(config_exp[bool_is_numeric])
+  
+  if(!is.na(sel_exp)){
+    config_exp <- config_exp[sel_exp,]
+  }
+  
+  # return
+  return(config_exp)
+}
+
 
 ############################# #
 ## MATRIX OPERATIONS       ####
@@ -200,18 +246,17 @@ if(!(exists('.rstride'))){
                             names(readRDS(data_filenames[length(data_filenames)]))))
   
   # loop over the output data types
-  data_type <- data_type_all[6]
+  data_type <- data_type_all[2]
   for(data_type in data_type_all){
 
     # check cluster
     smd_check_cluster()
-      
+     
     # loop over all experiments, rbind
-    i_file <- 1
+    i_file <- 2
     data_all <- foreach(i_file = 1:length(data_filenames),
                         .combine=.rstride$rbind_fill) %do%
     {
- 
       # get file name
       exp_file_name <- data_filenames[i_file]
       
@@ -333,6 +378,9 @@ if(!(exists('.rstride'))){
 
 # check file presence
 .rstride$data_files_exist <- function(design_of_experiment = exp_design){
+  
+  # #TODO: scan automaticaly for .csv or .json or .xml files and check presence
+  # c(design_of_experiment)[grepl('\\.csv',c(design_of_experiment))]
   
   # get the unique file names
   file_names <- unique(c(design_of_experiment$age_contact_matrix_file,
@@ -457,7 +505,31 @@ if(!(exists('.rstride'))){
   
 }
 
-
+.rstride$valid_cnt_param <- function(design_of_experiment = exp_design){
+ 
+  names(exp_design)[grepl('cnt',names(exp_design))]
+  
+  # contact reduction should be between 0 and 1
+  colname_cnt_reduction <- grepl('cnt_reduction',names(exp_design)) & !grepl('cutoff',names(exp_design))
+  if(any(exp_design[,colname_cnt_reduction]>1 | exp_design[,colname_cnt_reduction]<0)){
+    smd_print('CONTACT REDUCTIONS SHOULD ALL BE BETWEEN [0,1]',WARNING=T)
+    return(false)
+  }
+     
+  # compliance delay should be an integer
+  colname_compliance <- grepl('compliance_delay',names(exp_design))
+  if(any(exp_design[,colname_compliance] != round(exp_design[,colname_compliance]))){
+    smd_print('CONTACT COMPLIANCE DELAY IS NOT AN INTEGER',WARNING=T)
+    return(FALSE)
+  }
+  
+  if(any(exp_design$cnt_intensity_householdCluster>1 | exp_design$cnt_intensity_householdCluster<0)){
+    smd_print('CONTACT INTENSITY IN HOUSEHOLD CLUSTER SHOULD BE BETWEEN [0,1]',WARNING=T)
+    return(false)
+  }
+  
+  return(TRUE)
+}
 
 ############################### #
 ## DEVELOPMENT FUNCTIONS     ####
@@ -529,12 +601,12 @@ if(!(exists('.rstride'))){
 }
 
 .rstride$is_ua_cluster <- function(){
-  return(grepl('leibniz',system('hostname',intern = T)))
+  return(any(grepl('vsc',dir('~',full.names=T))))
 }
 
 
 # cumulative sum, ignoring NA's
-.rstride$cumsum_na <- function(x){
+cumsum_na <- function(x){
   cumsum(replace_na(x,0))
 }
 
@@ -549,4 +621,77 @@ if(!(exists('.rstride'))){
     return(rbind(x,y,fill=TRUE))
   }
 }
+
+############################### #
+## DESIGN OF EXPERIMENT      ####
+############################### #
+
+.rstride$get_full_grid_exp_design <- function(exp_param_list,num_seeds){
+  
+  # add sequence with all rng seeds
+  exp_param_list$rng_seed = seq(num_seeds)
+  
+  # generate grid with all combinations
+  exp_design <- expand.grid(exp_param_list,
+                            stringsAsFactors = F)
+  
+  # add a unique seed for each run
+  exp_design$rng_seed <- sample(nrow(exp_design))
+  dim(exp_design)
+  
+  # return
+  return(exp_design)
+}
+  
+.rstride$get_lhs_exp_design <- function(exp_param_list,num_experiments,num_rng_seeds=1){
+  
+  # get number of values per parameter
+  num_param_values <- unlist(lapply(exp_param_list,length))
+  
+  # select the parameters with at least 2 values
+  sel_param     <- names(num_param_values[num_param_values>1])
+  
+  # set rng seed for LHS 
+  rng_seed_lhs <- round(mean(exp_param_list$num_infected_seeds))
+  set.seed(ifelse(is.na(rng_seed_lhs),1234,rng_seed_lhs))
+    
+  # setup latin hypercube design (and add parameter names)
+  lhs_design <- data.frame(randomLHS(num_experiments,length(sel_param)))
+  names(lhs_design) <- sel_param
+  
+  # rescale LHS to given parameter range
+  for(i_param in sel_param){
+    param_range <- range(exp_param_list[i_param])
+    lhs_design[,i_param] <- lhs_design[,i_param] * diff(param_range) + param_range[1]
+  }
+  
+  # fix for parameters that are a (non-decimal) number
+  sel_param_num <- names(lhs_design)[grepl('num',names(lhs_design)) | grepl('compliance_delay',names(lhs_design))]
+  lhs_design[,sel_param_num] <- round(lhs_design[,sel_param_num])
+  
+  # copy lhs design into 'exp_design' and add other parameters
+  exp_design <- lhs_design
+  exp_param_names <- names(exp_param_list)
+  exp_param_names <- exp_param_names[!exp_param_names %in% sel_param]
+  i_param = exp_param_names[1]
+  for(i_param in exp_param_names){
+    exp_design[,i_param] <- exp_param_list[i_param]
+  }
+  
+  # copy lhs design if num_rng_seeds > 1
+  if(num_rng_seeds>1){
+    row_ind <- rep(1:nrow(exp_design),each=num_rng_seeds)
+    exp_design <- exp_design[row_ind,]
+    dim(exp_design)
+  }
+  
+  # add a unique seed for each run
+  exp_design$rng_seed <- sample(nrow(exp_design))
+  dim(exp_design)
+  
+  # return
+  return(exp_design)
+}
+
+
 

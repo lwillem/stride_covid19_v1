@@ -136,6 +136,10 @@ inspect_summary <- function(project_dir)
 ## HELP FUNCTION ####
 .rstride$get_variable_model_param <- function(project_summary){
   
+  if(ncol(project_summary) == 1){
+    return(unique(project_summary))
+  }
+  
   input_opt    <- .rstride$get_unique_param_list(project_summary)
   input_opt    <- input_opt[lapply(input_opt,length)>1]
   
@@ -144,12 +148,13 @@ inspect_summary <- function(project_dir)
   
   # with only one parameter, convert vector into matrix
   if(length(input_opt)==1){
-    input_opt_design <- as.matrix(data.frame(input_opt))
+    input_opt_design <- data.frame(as.matrix(data.frame(input_opt)))
   }
   
   # with only identical parameters, use the r0
   if(length(input_opt)==0){
-    input_opt_design <- as.matrix(data.frame(r0=unique(project_summary$r0)))
+    # input_opt_design <- as.matrix(data.frame(r0=unique(project_summary$r0)))
+    input_opt_design <- data.frame(r0=unique(project_summary$r0))
   }
   
   return(input_opt_design)
@@ -160,8 +165,9 @@ inspect_summary <- function(project_dir)
 .rstride$get_unique_param_list <- function(project_summary){
   
   col_output <- c('run_time', 'total_time', 'num_cases', 'AR' )
-  col_extra  <- c('rng_seed','output_prefix','transmission_probability','exp_id') 
-  col_input  <- !(names(project_summary) %in% c(col_output,col_extra))
+  col_extra  <- c('rng_seed','output_prefix','transmission_probability','exp_id','config_id','contact_id')
+  col_poison <- names(project_summary)[grepl('_pois',names(project_summary))]
+  col_input  <- !(names(project_summary) %in% c(col_output,col_extra,col_poison))
   
   # get unique values per parameter
   input_opt    <- lapply(project_summary[,col_input],unique)
@@ -169,3 +175,41 @@ inspect_summary <- function(project_dir)
   # return
   return(input_opt)
 }
+
+## HELP FUNCTION ####
+.rstride$get_config_id <- function(project_matrix){
+    
+  # retrieve all variable model parameters
+  input_opt_design   <- .rstride$get_variable_model_param(project_matrix)
+  
+  # collapse variables of input_opt_design (or just copy if only one column)
+  if(ncol(input_opt_design) == 1) {
+    config_id  <- project_matrix[,colnames(input_opt_design)]
+  } else{
+    config_id  <- apply(project_matrix[,names(input_opt_design)],1,paste, collapse='_')
+  }
+  
+  return(config_id)
+}
+
+.rstride$get_contact_id <- function(project_matrix){
+  
+  # retrieve all variable model parameters
+  input_opt_design   <- .rstride$get_variable_model_param(project_matrix)
+  
+  # add contact id
+  flag_opt_input_tracing <- (grepl('cnt_reduction',names(input_opt_design)) & grepl('exit',names(input_opt_design)))
+  if(any(flag_opt_input_tracing)){
+    colnames_contact           <- names(input_opt_design)[flag_opt_input_tracing]
+    if(length(colnames_contact) == 1) {
+      contact_id  <- project_matrix[,colnames_contact]
+    } else{
+      contact_id  <- apply((1-project_matrix[,colnames_contact])*100,1,paste, collapse='_')
+    }
+  } else{
+    contact_id  <- .rstride$get_config_id(project_matrix)
+  }
+
+  return(contact_id)
+}
+

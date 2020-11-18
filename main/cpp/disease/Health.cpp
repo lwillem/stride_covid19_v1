@@ -34,8 +34,7 @@ Health::Health(unsigned short int start_infectiousness, unsigned short int start
 		m_sympt_cnt_reduction_work_school(sympt_cnt_reduction_work_school),
 		m_sympt_cnt_reduction_community(sympt_cnt_reduction_community),
 		m_rel_transmission_asymptomatic(rel_transmission_asymptomatic),
-		m_rel_susceptibility_children(rel_susceptibility_children),
-		m_is_isolated(false), m_start_isolation(0)
+		m_rel_susceptibility_children(rel_susceptibility_children)
 {
 }
 
@@ -65,8 +64,6 @@ void Health::StopInfection()
         AssertThrow(IsInfected(), "Person not infected", nullptr);
         m_status = HealthStatus::Recovered;
         ResetDiseaseCounter();
-
-        if(IsInIsolation()){ EndIsolation(); }
 }
 
 void Health::Update()
@@ -101,24 +98,7 @@ void Health::Update()
 						StopInfection();
 				}
 			}
-			if(GetDiseaseCounter() == m_start_isolation){
-				m_is_isolated = true;
-//				std::cout << "SEC CASE isolated" << std::endl;
-			}
         }
 }
-
-
-void Health::StartIsolation(unsigned int delay_isolation){
-
-	m_start_isolation = GetDiseaseCounter() + delay_isolation;
-
-	if(delay_isolation == 0){
-		m_is_isolated = true;
-//		std::cout << "INDEX CASE isolated" << std::endl;
-	}
-
-}
-
 
 } // namespace stride

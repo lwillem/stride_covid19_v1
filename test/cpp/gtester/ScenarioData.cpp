@@ -51,12 +51,14 @@ tuple<ptree, unsigned int, double> ScenarioData::Get(string tag)
 	}
 
 	// Set target values per scenario
+	// note: last update on September 3rd, 2020, based on the mean of 20 realizations (MacOS, LW)
 	const map<string, unsigned int> targets_default = {
-		{"influenza_a", 500000U}, {"influenza_b", 0U}, {"influenza_c", 5U}, {"measles_16", 47000U},
+		{"influenza_a", 500000U}, {"influenza_b", 0U}, {"influenza_c", 5U}, {"measles_16", 45000U},
 		{"measles_26", 600000U},  {"r0_0", 1200U},     {"r0_4", 3400U},     {"r0_8", 9500U},
-		{"r0_12", 24000U},        {"r0_16", 47000U},   {"covid19_base", 80000U}, {"covid19_all", 80000U},
-		{"covid19_daily", 88000U},{"covid19_distancing", 19000U}, {"covid19_age_15min",88000U},
-		{"covid19_householdclusters", 49000U}, {"covid19_tracing",37000U}, {"covid19_tracing_all",37000U}};
+		{"r0_12", 23000U},        {"r0_16", 45000U},   {"covid19_base", 82500U}, {"covid19_all", 81000U},
+		{"covid19_daily", 91000U},{"covid19_distancing", 19000U}, {"covid19_age_15min",90000U},
+		{"covid19_householdclusters", 46000U}, {"covid19_tracing",41000U}, {"covid19_tracing_all",39000U}};
+
 
 	// Set margins per scenario
 	const map<string, double> margins_default = {
@@ -64,7 +66,8 @@ tuple<ptree, unsigned int, double> ScenarioData::Get(string tag)
 		{"measles_26", 5.0e-02},  {"r0_0", 5.0e-02},    {"r0_4", 1.0e-01},        {"r0_8", 1.0e-01},
 		{"r0_12", 5.0e-02},       {"r0_16", 5.0e-02},   {"covid19_base", 1.0e-01},  {"covid19_all", 1.0e-01},
 		{"covid19_daily", 1.0e-01},{"covid19_distancing", 1.0e-01},{"covid19_age_15min",1.0e-1},
-		{"covid19_householdclusters", 1.0e-01}, {"covid19_tracing",1.0e-01}, {"covid19_tracing_all",1.0e-01}};
+		{"covid19_householdclusters", 1.5e-01}, // more stochastic effects observed
+		{"covid19_tracing",1.0e-01}, {"covid19_tracing_all",1.0e-01}};
 
 	unsigned int target;
 	double       margin;
@@ -112,7 +115,7 @@ tuple<ptree, unsigned int, double> ScenarioData::Get(string tag)
 			pt.put("run.num_daily_imported_cases", 10U);
 	}
 	if (tag == "covid19_distancing") {
-			pt.put("run.holidays_file","calendar_belgium_2020_covid19_april.json");
+			pt.put("run.holidays_file","calendar_belgium_2020_covid19_exit_school_adjusted.csv");
 			pt.put("run.cnt_reduction_workplace",0.3);
 			pt.put("run.cnt_reduction_other",0.4);
 			pt.put("run.compliance_delay_workplace",2);
@@ -123,7 +126,7 @@ tuple<ptree, unsigned int, double> ScenarioData::Get(string tag)
 			pt.put("run.age_contact_matrix_file", "contact_matrix_flanders_conditional_teachers_15min.xml");
 	}
 	if (tag == "covid19_householdclusters") {
-			pt.put("run.holidays_file", "calendar_belgium_2020_covid19_exit_school_adjusted.json");
+			pt.put("run.holidays_file", "calendar_belgium_2020_covid19_exit_schoolcategory_adjusted.csv");
 			pt.put("run.start_date", "2020-06-01");
 			pt.put("run.population_file", "pop_belgium600k_c500_teachers_censushh_extended3_size2.csv");
 			pt.put("run.cnt_intensity_householdCluster", 4/7);
@@ -131,7 +134,7 @@ tuple<ptree, unsigned int, double> ScenarioData::Get(string tag)
 	// set default tracing parameters
 	if (tag == "covid19_tracing" || tag == "covid19_tracing_all") {
 		    pt.put("run.event_log_level", "Transmissions");
-			pt.put("run.holidays_file", "calendar_belgium_2020_covid19_exit_school_adjusted.json");
+			pt.put("run.holidays_file", "calendar_belgium_2020_covid19_exit_schoolcategory_adjusted.csv");
 			pt.put("run.start_date", "2020-06-01");
 			pt.put("run.detection_probability", 0.5);
 			pt.put("run.tracing_efficiency_household", 1.0);

@@ -10,7 +10,7 @@ We are happy to refer to our **pre-print** for more information:
 
 
 
-**Other scientific output** based on this software:
+**Other scientific output** related to this software:
 
 * [Model optimisation](https://doi.org/10.1186/s12859-015-0612-2)
 * [Influenza](https://doi.org/10.1016/j.procs.2017.05.086)

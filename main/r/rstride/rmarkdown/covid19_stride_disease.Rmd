@@ -1,0 +1,237 @@
+---
+title: "COVID-19 disease history"
+author: "Willem L and the SIMID-COVID-19 Team"
+fig_caption: yes
+output: 
+  pdf_document:
+    keep_tex: yes
+header-includes: \usepackage{caption}
+extra_dependencies: float
+toc: yes
+toc_depth: '3'
+---
+
+```{r 'setup', echo = FALSE, cache = FALSE}
+    knitr::opts_chunk$set(dev = c('pdf'), 
+        pdf.options(encoding = "ISOLatin9.enc")) 
+```
+
+```{r setup2, include=FALSE}
+library(knitr)
+# knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = FALSE, fig.width = 6, fig.height = 4)
+
+library(magick) #to render and to crop png files
+
+setwd('~/opt/stride-312')
+# load rStride
+source('./bin/rstride/rStride.R')
+
+# read disease xml
+# plot probabilities
+
+disease_data <- xmlToList('data/disease_covid19_lognorm.xml')
+
+p_start_symp  <- as.numeric(disease_data$start_symptomatic)
+p_time_asymp  <- as.numeric(disease_data$time_asymptomatic)
+p_time_infect <- as.numeric(disease_data$time_infectious)
+p_time_symp   <- as.numeric(disease_data$time_symptomatic)
+
+# convert cumulative probability (0:n) into day-specific probability (1:n)
+p_start_symp  <- diff(p_start_symp)
+p_time_asymp  <- diff(p_time_asymp)
+p_time_infect <- diff(p_time_infect)
+p_time_symp   <- diff(p_time_symp)
+
+n_sample <- 1e5
+start_symp  <- sample(1:length(p_start_symp), size = n_sample, p_start_symp,replace = T)
+time_asymp  <- sample(1:length(p_time_asymp), size = n_sample, p_time_asymp,replace = T)
+time_infect <- sample(1:length(p_time_infect),size = n_sample, p_time_infect,replace = T)
+time_symp   <- sample(1:length(p_time_symp),  size = n_sample, p_time_symp,replace = T)
+
+flag_unvalid <- start_symp - time_asymp < 1
+table(flag_unvalid) / n_sample
+start_symp  <- start_symp[!flag_unvalid]
+time_asymp  <- time_asymp[!flag_unvalid]
+time_infect <- time_infect[!flag_unvalid]
+
+add_hist_vline <- function(bool_infection = TRUE){
+  
+  # add grid
+  grid(nx=NA,ny=NULL)
+  
+  abline(v=0,lty=2)
+  
+  if(bool_infection)
+    text(0, par("usr")[4]*2/4,'infection',srt=90,pos=2,cex=0.7)
+  else
+    text(0, par("usr")[4]*2/4,'symptom onset',srt=90,pos=4,cex=0.7)
+}
+
+
+```
+
+
+
+## Preamble
+
+In this report, we estimate the start of the infectious period since infection and the duration based on reported incubation time and viral load estimates from the literature. Assuming that the infectiousness profile of (fully) asymptomatic cases is similar to symptomatic cases, the following estimations for the infectious period (start and duration) since infection can be extrapolated to asymptomatic cases.
+
+The work presented here is part of COVID-19 modelling project using the individual-based model STRIDE (Willem et al, 2020 Medrxiv), which runs time steps of one day. As such, all timings and probabilities are presented per day. More info about our COVID-19 related work at the University of Antwerp and Hasselt University is provided at [simid.be](www.simid.be), [uhasselt.be/dsi-covid19](www.uhasselt.be/dsi-covid19) and [covid-en-wetenschap.be](www.covid-en-wetenschap.be).
+
+## References
+
+*  He, X., Lau, E.H., Wu, P., Deng, X., Wang, J., Hao, X., Lau, Y.C., Wong, J.Y., Guan, Y., Tan, X.,et al.:Temporal dynamics in viral shedding and transmissibility of COVID-19. Nat Med26(5), 672–675 (2020)
+
+* Li, Q., Guan, X., Wu, P., Wang, X., Zhou, L., Tong, Y., Ren, R., Leung, K.S.M., Lau, E.H.Y.,et al.:Early transmission dynamics in Wuhan, China, of novel coronavirus–infected pneumonia. N Engl J Med382(13), 1199–1207 (2020
+
+* Lourenço, J., Paton, R., Ghafari, M., Kraemer, M., Thompson, C., Simmonds, P., Klenerman, P., Gupta,S.:  Fundamental principles of epidemic spread highlight the immediate need for large-scale serological surveys to assess the stage of the SARS-CoV-2 epidemic. MedRxiv (2020)
+
+* Willem,  L.,  Abrams,  S.,  Petrof,  O.,  Coletti,  P.,  Kuylen,  E.,  Libin,  P.,  Møgelmose,  S.,  Wambua,  J.,Herzog,  S.A.,  Faes,  C.,  SIMID  COVID19  team,  Beutels,  P.,  Hens,  N.:  The  impact  of  contact  tracing and household bubbles on deconfinement strategies for COVID-19:  an individual-based modelling study.medRxiv (2020)
+
+\clearpage
+## Start infectiousness (w.r.t. symptom onset)
+
+He et al (2020, Nat Med) concluded that viral shedding may begin 5 to 6 days before the appearance of the first symptoms. The start of infectiousness should be at least 2 days before symptom onset. After symptom onset, viral loads decreased monotonically and declines significantly 8 days after symptom onset, as live virus could no longer be cultured. The inferred infectiousness profile was captured in a gamma distribution with shape 20.516508 and rate 1.592124 with a shift of 20.516508 days:
+
+
+```{r he_infectious_profile, fig.cap='Infectiousness profile relative to symptom onset, from He et al (2020, Nat Med)', out.extra = "",dev=c('pdf')}
+# --- start infectious period ----
+# He et al
+inf.par1 = 20.516508
+inf.par2 = 1.592124
+inf.par3 = 12.272481
+plot(NA, axes=F, ann=F, ylim=c(0,0.3), xlim=c(-10,8))
+axis(2, las=1, at=0:3*0.1, lab=paste0(0:3*10,'%'))
+#abline(v=0, col=gray(0.8))
+curve(dgamma(x+inf.par3, shape = inf.par1, rate = inf.par2), from=-10, to=8, add=T)
+axis(1, at=(-5:4)*2, lab=(-5:4)*2, cex.axis=1)
+mtext('Density', 2, line=3)
+mtext('Days after symptom onset', 1, line=2.5)
+add_hist_vline(bool_infection = F)
+
+```
+
+To estimate the pre-symptomatic infectious period density, we partly selected the infectiousness profile from He et al (2020, Nat Med) up to 1 days prior symptom onset and re-scaled this so the overall probabilty equals one. The discretized result is captured by: 
+
+```{r stride_pre_symptomatic, fig.cap='Start infectious period'}
+
+dist_start_symp <- hist(-time_asymp,right=F,-10:0-0.5,freq = F,
+                        xlab='Days since symptom onset',
+                        ylab='Probability',
+                        ylim=c(0,0.5),
+                        xlim=c(-10,0.5),
+                        main='')
+add_hist_vline(bool_infection = F)
+```
+
+
+\clearpage
+## Incubation period
+
+Li et al (2020, NEJM) reported a mean incubation period of 5.2 days (95% confidence interval: 4.1 to 7.0). The distribution follows a log-normal distribution with mean and standard deviation of 1.434065 and 0.6612 respectively on the log scale. These numerical parameters are derived from He et al (2020, Nat Med) and can be represented by the following density plot:
+
+```{r li_incubation, fig.cap='Incubation period from Li et al (2020, NEJM)'}
+# Incubation period ----
+# from Li et al NEJM 2020
+# lognormal mean = 5.2; 95% CI = c(4.1, 7.0)
+ln.par1 = 1.434065
+ln.par2 = 0.6612
+
+# Explore incubation period 
+curve(dlnorm(x, ln.par1, ln.par2), from=0, to=14, axes=F, ann=F, ylim=c(0,0.3), xlim=c(0,14))
+axis(2, las=1, at=0:3*0.1, lab=paste0(0:3*10,'%'))
+axis(1, at=0:5*3, lab=0:5*3, cex.axis=1)
+mtext('Density', 2, line=3)
+mtext('Days from infection to symptom onset', 1, line=2.5)
+add_hist_vline()
+```
+
+
+We calculated the discrete version of this log-normal distribution with the assumption that infectiousness has to start at least one day prior symptom onset and at least one day after infection. This results in the following probability function for the incubation period.
+
+```{r stride_incubation, fig.cap='Incubation period (discrete)' }
+dist_start_symp <- hist(start_symp,right=F,0:22-0.5,freq = F,
+                        xlab='Days since infection',
+                        ylab='Probability',
+                        ylim=c(0,0.25),
+                        main='')
+add_hist_vline()
+```
+
+\clearpage
+## Start infectiousness (since infection)
+
+By the combination of the discrete density functions of the latent period and the pre-symptomatic infectious period, we obtain the following probability function for the start of the infectious period:
+
+```{r stride_start_infectious, fig.cap='Start infectious period'}
+dist_start_inf <- hist(start_symp - time_asymp,right=F,0:22-0.5,freq = F,
+                       xlab='Days since infection',
+                       ylab='Probability',
+                       ylim=c(0,0.25),
+                        main='')
+add_hist_vline()
+
+```
+
+The cumulative version of this probability function is given by:
+
+```{r stride_pre_sympt, fig.cap='Cumulative probability for the start of the infectious period', fig.height= 4}
+plot(dist_start_inf$mids,
+     cumsum(dist_start_inf$density),
+     xlab='Days since infection',
+     ylab='Cumulative probability',
+     xlim=c(0,14),xaxt='n',
+     ylim=c(0,1))
+axis(1,0:14,0:14)
+grid()
+add_hist_vline()
+
+add_info <- function(sel_day){
+  sel_mid  <- which(dist_start_inf$mids==sel_day)
+sel_prob <- cumsum(dist_start_inf$density)[sel_mid]
+lines(c(sel_day,sel_day),
+      c(0,sel_prob))
+lines(c(0,sel_day),
+      c(sel_prob,sel_prob))
+text(sel_day/2,
+     sel_prob+0.1,
+     round(sel_prob,digits=2),
+     cex=0.6,
+     pos=1,
+     adj=1)
+}
+add_info(7)
+add_info(10)
+
+
+```
+
+\clearpage
+## Infectious period
+
+Based on He et al (2020, Nat Med), infectiousness declines after symptom onset up to a maximum of 7 days. Using the estimated pre-symptomatic period, we assumed a normal distribution for the infectious period with mean 6 and standard deviation of 1. This aligns with the estimation of Lourenço et al (2020, Medxriv) of mean 4.5 days and standard deviation 1. We used a mean of 6 days in this analysis since it provided a better fit for the doubling time and serial interval for Belgium in March 2020. More info on this will be provided in a later stage. The discrete version of the infectious period and infectious period since symptom onset are presented by:
+
+```{r stride_infect_period_total, fig.cap='Infectious period (total)',fig.height= 3.5}
+dist_symp_inf <- hist(time_infect,right=F,0:22-0.5,freq = F,
+                      ylim=c(0,0.5),
+                      xlim=c(0,10),
+                      xlab='Days',
+                      ylab='Probability',
+                        main='')
+```
+
+If we combine the pre-symptomatic infectiousness probability function with the total infectious period, we end up with the following probability given symptom onset:
+
+```{r stride_infect_period_onset, fig.cap='Infectious period after symptom onset',fig.height= 3.5}
+dist_symp_inf <- hist(time_infect - time_asymp,right=F,-5:22-0.5,freq = F,
+                      ylim=c(0,0.5),
+                      xlim=c(0,10),
+                      xlab='Days since symptom onset',
+                      ylab='Probability',
+                        main='')
+add_hist_vline(bool_infection = F)
+```
+
+
+

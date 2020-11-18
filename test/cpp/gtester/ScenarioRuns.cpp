@@ -24,6 +24,7 @@
 #include "sim/Sim.h"
 #include "sim/SimRunner.h"
 #include "util/ConfigInfo.h"
+#include "util/FileSys.h"
 
 #include <boost/property_tree/ptree.hpp>
 #include <cmath>

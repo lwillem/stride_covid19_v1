@@ -117,18 +117,6 @@ public:
         /// Stop the infection.
         void StopInfection();
 
-        /// Start self-isolation in X days
-        // void StartIsolation(unsigned int delay_isolation){ m_start_isolation = GetDiseaseCounter() + delay_isolation;};
-        // void StartIsolation(unsigned int delay_isolation){ m_is_isolated = true;};
-        void StartIsolation(unsigned int delay_isolation);
-
-
-        /// End self-isolation
-        void EndIsolation() { m_is_isolated = false; };
-
-        /// Is this person in self-isolation?
-        bool IsInIsolation() { return m_is_isolated; };
-
         /// Update progress of the disease.
         void Update();
 
@@ -149,6 +137,9 @@ public:
 
         	return rel_transmission;
         }
+
+	/// Is this individual PCR detectable?
+	bool IsPcrDetectable(unsigned int detectable_delay) const { return GetDiseaseCounter() >= detectable_delay; } 
 
 private:
         /// Get the disease counter.
@@ -176,9 +167,6 @@ private:
         double             m_sympt_cnt_reduction_community;    ///< Proportional reduction of presence in the community pools when symptomatic
         double             m_rel_transmission_asymptomatic;	   ///< Relative reduction of transmission for asymptomatic cases
         double             m_rel_susceptibility_children;	   ///< Relative reduction in susceptibility for children vs. adults
-
-        bool               m_is_isolated;             ///< Boolean to indicate whether this person is in self-isolation
-        unsigned short int m_start_isolation;         ///< Days after infection to start self-isolation
 };
 
 } // namespace stride

@@ -24,8 +24,11 @@
 #include "contact/IdSubscriptArray.h"
 #include "contact/ContactHandler.h"
 #include "disease/Health.h"
+#include "calendar/Calendar.h"
 
 #include <cstddef>
+#include <queue>
+#include <vector>
 
 namespace stride {
 
@@ -35,9 +38,26 @@ namespace stride {
 class Person
 {
 public:
+        enum EventType { StartIsolation, EndIsolation };
+        class Event 
+        {
+            public:
+                Event(unsigned int t, EventType type) : 
+                    m_t(t), m_type(type) {}
+                unsigned int GetTime() const { return m_t; }
+                EventType GetType() const { return m_type; }
+
+            private:
+                unsigned int m_t;
+                EventType m_type;
+        };
+
+public:
         /// Default construction (for population vector).
         Person() : m_age(0.0), m_id(0), m_pool_ids(), m_health(), m_in_pools(), m_is_participant(),
-		m_able_to_telework(), m_is_tracing_index(false), m_contact_tracing_list() {}
+		m_able_to_telework(), m_is_tracing_index(false), m_contact_tracing_list(), 
+        m_isolated(false),
+        m_events() {}
 
         /// Constructor: set the person data.
         Person(unsigned int id, float age, unsigned int householdId, unsigned int k12SchoolId, unsigned int collegeId,
@@ -46,7 +66,8 @@ public:
                                                workId,      primaryCommunityId, secondaryCommunityId,
 											   householdClusterId},
               m_health(), m_in_pools(true), m_is_participant(false), m_able_to_telework(false),
-			  m_is_tracing_index(false), m_contact_tracing_list()
+			  m_is_tracing_index(false), m_contact_tracing_list(), m_isolated(false),
+              m_events()
         {
         }
 
@@ -77,9 +98,18 @@ public:
         /// Participate in social contact study and log person details
         void ParticipateInSurvey() { m_is_participant = true; }
 
-        /// Update the health status and presence in contact pools.
+        //Isolate the individual over an interval of days 
+        void Isolate(unsigned int simDay, unsigned int from, unsigned int to); 
+
+        //Is the individual being isolated?
+        bool InIsolation() const { return m_isolated; }
+
+        /// Daily update of the isolation status, health status and presence in contact pools.
         void Update(bool isRegularWeekday, bool isK12SchoolOff, bool isCollegeOff,
-        		bool isWorkplaceDistancingEnforced, bool isHouseholdClusteringAllowed, ContactHandler& cHandler);
+        		bool isWorkplaceDistancingEnforced, bool isHouseholdClusteringAllowed, 
+        		bool isIsolatedFromHousehold, 
+                ContactHandler& cHandler,
+                const std::shared_ptr<Calendar> calendar);
 
         /// Set the age of the person
         void SetAge(unsigned int newAge) { m_age = newAge; }
@@ -119,6 +149,12 @@ public:
         }
 
 private:
+        ///< Schedule an event, if the event should take place on simDay, it is executed right away.
+        void ScheduleEvent(unsigned int simDay, const Event &event);
+        ///< Check whether there are events to execute, and if so, execute them.
+        void UpdateEvents(unsigned int simDay);
+
+private:
         float        m_age; ///< The age.
         unsigned int m_id;  ///< The id.
 
@@ -143,6 +179,14 @@ private:
 
         ///< Vector with the id of contacts during infected period
         std::vector<Person*> m_contact_tracing_list;
+
+        ///< Isolation state of the individual 
+        unsigned int m_isolated;
+
+        ///< Event queue
+        std::priority_queue<Event, std::vector<Event>, std::greater<Event>> m_events;
 };
+
+bool operator>(const Person::Event& lhs, const Person::Event& rhs);
 
 } // namespace stride

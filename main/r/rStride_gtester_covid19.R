@@ -14,7 +14,7 @@
 #  see http://www.gnu.org/licenses/.
 #
 #
-#  Copyright 2020, Willem L, Kuylen E & Broeckhove J
+#  Copyright 2020, Willem L
 ############################################################################ #
 #
 # Call this script from the main project folder (containing bin, config, lib, ...)
@@ -53,8 +53,7 @@ exp_design <- expand.grid(r0                            = 2.5,
                           population_file               = 'pop_belgium600k_c500_teachers_censushh.csv',
                           age_contact_matrix_file       = 'contact_matrix_flanders_conditional_teachers.xml',
                           start_date                    = '2020-03-05',
-                          holidays_file                 = 'holidays_flanders_2020.json',
-                          school_system_adjusted        = 0,
+                          holidays_file                 = 'holidays_belgium_2019_2021.csv',
                           telework_probability          = 0,
                           cnt_reduction_workplace       = 0,
                           cnt_reduction_other           = 0,
@@ -74,6 +73,11 @@ exp_design <- expand.grid(r0                            = 2.5,
                           test_false_negative            = 0,
                           gtester_label                  = 'covid_base',
                           event_log_level                = 'Transmissions',
+                          
+                          hospital_category_age         = paste(0,19,60,80,sep=','),
+                          hospital_probability_age      = paste(0.049,0.03024,0.1197,0.5922,sep=','),
+                          hospital_mean_delay_age       = paste(3,7,7,6,sep=','),
+
                           stringsAsFactors = F)
 
 # all contacts
@@ -88,7 +92,7 @@ exp_design_daily$gtester_label            <- 'covid_daily'
 
 # distancing
 exp_design_dist <- exp_design
-exp_design_dist$holidays_file              <- 'calendar_belgium_2020_covid19_april.json'
+exp_design_dist$holidays_file              <- 'calendar_belgium_2020_covid19_exit_school_adjusted.csv'
 exp_design_dist$cnt_reduction_workplace    <- 0.3;
 exp_design_dist$cnt_reduction_other        <- 0.4;
 exp_design_dist$compliance_delay_workplace <- 3;
@@ -106,26 +110,26 @@ exp_design_15min$gtester_label           <- 'covid_15min'
 exp_design_hhcl <- exp_design
 exp_design_hhcl$population_file       <- 'pop_belgium600k_c500_teachers_censushh_extended3_size2.csv'
 exp_design_hhcl$cnt_intensity_householdCluster <- 4/7
-exp_design_hhcl$holidays_file         <- 'calendar_belgium_2020_covid19_exit_school_adjusted.json'
+exp_design_hhcl$holidays_file         <- 'calendar_belgium_2020_covid19_exit_schoolcategory_adjusted.csv'
 exp_design_hhcl$start_date            <- '2020-06-01'
 exp_design_hhcl$gtester_label         <- 'covid_hhcl'
 
 # contact tracing
 exp_design_cts <- exp_design
 exp_design_cts$detection_probability        <- 0.5
-exp_design_cts$holidays_file                <- 'calendar_belgium_2020_covid19_exit_school_adjusted.json'
+exp_design_cts$holidays_file                <- 'calendar_belgium_2020_covid19_exit_schoolcategory_adjusted.csv'
 exp_design_cts$start_date                   <- '2020-06-01'
 exp_design_cts$tracing_efficiency_household <- 1.0
 exp_design_cts$tracing_efficiency_other     <- 0.7
 exp_design_cts$test_false_negative          <- 0.1
 exp_design_cts$case_finding_capacity        <- 1000
 exp_design_cts$event_log_level              <- 'Transmissions'
-exp_design_cts$gtester_label                <- 'covid_tracing_all'
+exp_design_cts$gtester_label                <- 'covid_tracing'
 
 # contact tracing all
 exp_design_cts_all <- exp_design_cts
 exp_design_cts_all$event_log_level          <- 'ContactTracing'
-exp_design_cts_all$gtester_label            <- 'covid_tracing'
+exp_design_cts_all$gtester_label            <- 'covid_tracing_all'
 
 # rbind all designs
 exp_design <- rbind(exp_design, exp_design_all,
@@ -137,6 +141,10 @@ exp_design <- rbind(exp_design, exp_design_all,
 set.seed(125)
 exp_design$rng_seed <- sample(nrow(exp_design))
 dim(exp_design)
+
+# # selection?
+# exp_design <- exp_design[exp_design$gtester_label %in% c('covid_base'),]
+#exp_design <- exp_design[exp_design$gtester_label %in% c('covid_base'),]
 
 
 ################################## #
@@ -172,6 +180,33 @@ project_summary$run_tag        <- NULL
 project_summary$run_time       <- NULL
 project_summary$total_time     <- NULL
 
+# CHECK summary: plot number of cases
+y_lim     <- range(pretty(c(project_summary$num_cases*0.9,project_summary$num_cases*1.1)))
+bplt_mean <- aggregate(num_cases ~ gtester_label,data=project_summary,mean)
+bplt_mean$num_cases <- round(bplt_mean$num_cases)
+bplt <- boxplot(num_cases ~ gtester_label,data=project_summary,las=2,ylim=y_lim)
+x_ticks_mean <- (1:ncol(bplt$stats))+0.2
+points(x = x_ticks_mean,
+       y = bplt_mean$num_cases,
+       pch = 8,
+       col = 4)
+arrows(x0 = x_ticks_mean,
+       y0 = bplt_mean$num_cases * 0.9,
+       y1 = bplt_mean$num_cases * 1.1,
+       col = 4, lwd = 2,length = 0
+       )
+text(x = 1:ncol(bplt$stats),
+     y = bplt_mean$num_cases*1.1,
+     labels = bplt_mean$num_cases,
+     pos = 3,
+     col=4)
+legend('topright',
+       c('mean',
+         'mean ± 10%'),
+       pch=c('*','I'),
+       col=4)
+grid()
+
 # load the incidence output
 data_incidence     <- .rstride$load_aggregated_output(project_dir,'data_incidence')
 dim(data_incidence)
@@ -185,12 +220,13 @@ ref_project_summary  <- readRDS(file='tests/regression_rstride_summary.rds')
 ref_data_incidence   <- readRDS(file='tests/regression_rstride_incidence.rds')
 ref_data_prevalence  <- readRDS(file='tests/regression_rstride_prevalence.rds')
 
-# plot number of cases
-bplt <- boxplot(num_cases ~ gtester_label,data=project_summary,las=2)
-text(x = 1:ncol(bplt$stats),
-     y = bplt$stats[5,],
-     labels = bplt$stats[3,],
-     pos = 3)
+# Do we have to select reference scenarios?
+if(nrow(project_summary) != nrow(ref_project_summary)){
+  ref_project_summary <- ref_project_summary[ref_project_summary$gtester_label %in% unique(project_summary$gtester_label),]
+  ref_data_incidence  <- ref_data_incidence[ref_data_incidence$exp_id %in% unique(ref_project_summary$exp_id),]
+  ref_data_prevalence <- ref_data_prevalence[ref_data_prevalence$exp_id %in% unique(ref_project_summary$exp_id),]
+  smd_print("REGRESSION TEST DOES NOT CONTAIN ALL SCENARIOS",WARNING = T)
+}
 
 ## COMPARE SUMMARY
 diff_summary    <- setdiff(project_summary,ref_project_summary)
@@ -204,9 +240,13 @@ if(length(diff_summary)>0){
     project_summary[flag,names(diff_summary)]
     ref_project_summary[flag,names(diff_summary)]
     
-    par(mfrow=c(1,2))
-    boxplot(num_cases ~ gtester_label,data=ref_project_summary)
-    boxplot(num_cases ~ gtester_label,data=project_summary,add=F,col=alpha(2,0.4))   
+    par(mfrow=c(1,1),mar=c(8,4,4,2))
+    y_lim <- range(pretty(ref_project_summary$num_cases,project_summary$num_cases))
+    boxplot(num_cases ~ gtester_label,
+            data=ref_project_summary,main='REFERENCE',ylim=y_lim, las=2);grid()
+    boxplot(num_cases ~ gtester_label,
+            data=project_summary,add=T,
+            col=alpha(2,0.4),main='NEW',ylim=y_lim,las=2)  ;grid() 
 
   }
   #print(head(diff_summary))
@@ -226,6 +266,13 @@ if(length(diff_incidence)>0){
     smd_print('EXP_ID with changes:', paste(unique(data_incidence$exp_id[flag]),collapse = ','))
     # data_incidence[flag,names(diff_incidence)]
     # ref_data_incidence[flag,names(diff_incidence)]    
+    
+    # bool_colnames <- names(diff_incidence)[names(diff_incidence) %in% names(ref_data_incidence)]
+    # bool_colnames
+    # head(data_incidence[,bool_colnames])
+    # head(ref_data_incidence[,bool_colnames])
+    #head(data_incidence[names(diff_incidence)])
+    
   }
   #print(head(diff_incidence))
 } else{
@@ -261,7 +308,4 @@ rrv_repo <- function(){
   saveRDS(data_prevalence,file=file.path(stride_repo_dir,'regression_rstride_prevalence.rds'))
   smd_print('NEW REFERENCE VALES STORED: IN STRIDE REPOSITORY')
 }
-
-
-
 

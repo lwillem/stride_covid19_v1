@@ -31,11 +31,16 @@ INSTALL(DIRECTORY
 INSTALL( FILES 			
             rStride_all.R
             rStride_contacts.R
+            rStride_create_config.R
+            rStride_ensemble.R
+            rStride_param.R
+            rStride_parse_output.R
             rStride_explore.R
             rStride_gtester_covid19.R
             rStride_r0.R 	
             rStride_intervention_baseline.R
             rStride_intervention.R
+            rStride_universal_testing.R
             rStride_pop.R				 
 	DESTINATION ${BIN_INSTALL_LOCATION}  
 	PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_WRITE GROUP_READ

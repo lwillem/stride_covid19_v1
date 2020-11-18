@@ -115,10 +115,10 @@ int main(int argc, char** argv)
 
         } catch (exception& e) {
                 exitStatus = EXIT_FAILURE;
-                cerr << "\nEXCEPION THROWN: " << e.what() << endl;
+                cerr << "\nEXCEPTION THROWN: " << e.what() << endl;
         } catch (...) {
                 exitStatus = EXIT_FAILURE;
-                cerr << "\nEXCEPION THROWN: Unknown exception." << endl;
+                cerr << "\nEXCEPTION THROWN: Unknown exception." << endl;
         }
         return exitStatus;
 }

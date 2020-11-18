@@ -25,6 +25,7 @@
 #include "contact/InfectorExec.h"
 #include "contact/TransmissionProfile.h"
 #include "disease/PublicHealthAgency.h"
+#include "disease/UniversalTesting.h"
 
 #include "util/RnMan.h"
 
@@ -107,14 +108,16 @@ private:
         unsigned int                m_cnt_reduction_intergeneration_cutoff;
         unsigned int                m_compliance_delay_workplace;
         unsigned int                m_compliance_delay_other;
-        unsigned int                m_cnt_other_exit_delay;
         unsigned int                m_day_of_community_distancing;
         unsigned int     	        m_day_of_workplace_distancing;
         unsigned int     			m_day_of_community_distancing_exit;
         double                      m_cnt_intensity_householdCluster;
+        bool                        m_is_isolated_from_household;
 
         PublicHealthAgency          m_public_health_agency;
+        UniversalTesting            m_universal_testing;
 
+        //TODO: this is not used anymore? remove it?
         // Introduce new infected cases on a daily basis?
         unsigned int                m_num_daily_imported_cases;
 

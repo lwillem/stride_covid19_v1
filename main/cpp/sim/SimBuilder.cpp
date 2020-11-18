@@ -49,7 +49,8 @@ shared_ptr<Sim> SimBuilder::Build(shared_ptr<Sim> sim, shared_ptr<Population> po
         sim->m_population                    = std::move(pop);
         sim->m_track_index_case              = m_config.get<bool>("run.track_index_case");
         sim->m_num_threads                   = m_config.get<unsigned int>("run.num_threads");
-        sim->m_calendar                      = make_shared<Calendar>(m_config);
+        unsigned int num_days                = m_config.get<unsigned short>("run.num_days");
+        sim->m_calendar                      = make_shared<Calendar>(m_config,num_days);
         sim->m_event_log_mode                = EventLogMode::ToMode(m_config.get<string>("run.event_log_level", "None"));
         sim->m_rn_man                        = std::move(rnMan);
 
@@ -104,6 +105,11 @@ shared_ptr<Sim> SimBuilder::Build(shared_ptr<Sim> sim, shared_ptr<Population> po
         sim->m_num_daily_imported_cases = m_config.get<double>("run.num_daily_imported_cases",0);
 
         // --------------------------------------------------------------
+		// Set Universal Testing 
+        // --------------------------------------------------------------
+        sim->m_universal_testing.Initialize(m_config);
+        
+        // --------------------------------------------------------------
 		// Set Public Health Agency
 		// --------------------------------------------------------------
         sim->m_public_health_agency.Initialize(m_config);
@@ -117,8 +123,8 @@ shared_ptr<Sim> SimBuilder::Build(shared_ptr<Sim> sim, shared_ptr<Population> po
 		sim->m_cnt_reduction_intergeneration_cutoff = m_config.get<unsigned int>("run.cnt_reduction_intergeneration_cutoff",0);
 		sim->m_compliance_delay_workplace           = m_config.get<unsigned int>("run.compliance_delay_workplace",0);
 		sim->m_compliance_delay_other               = m_config.get<unsigned int>("run.compliance_delay_other",0);
-		sim->m_cnt_other_exit_delay                 = m_config.get<unsigned int>("run.cnt_other_exit_delay",0);
 		sim->m_cnt_intensity_householdCluster       = m_config.get<double>("run.cnt_intensity_householdCluster",0);
+		sim->m_is_isolated_from_household           = m_config.get<bool>("run.is_isolated_from_household",false);
 
         // --------------------------------------------------------------
         // Seed population with survey participants.

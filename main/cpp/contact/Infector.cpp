@@ -109,7 +109,7 @@ using namespace stride::ContactType;
 inline double GetContactProbability(const AgeContactProfile& profile, const Person* p1, const Person* p2,
 		size_t pool_size, const ContactType::Id pType, double cnt_reduction_work, double cnt_reduction_other,
 		double cnt_reduction_school, double cnt_reduction_intergeneration, unsigned int cnt_reduction_intergeneration_cutoff,
-		std::shared_ptr<Population> population, double cnt_intensity_householdCluster)
+		std::shared_ptr<Population>& population, double cnt_intensity_householdCluster)
 {
 
 		// initiate a contact adjustment factor, to account for physical distancing and/or contact intensity

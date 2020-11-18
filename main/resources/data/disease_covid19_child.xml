@@ -112,9 +112,9 @@
   <rel_transmission_asymptomatic>
       0.5
   </rel_transmission_asymptomatic>
-  <m_rel_susceptibility_children>
+  <rel_susceptibility_children>
       0.5
-  </m_rel_susceptibility_children>
+  </rel_susceptibility_children>
   <prob_symptomatic>
     <data_source>Wu et al, Nature Medicine (2020) + with assumption for children (no data) and truncated values for +60 year olds</data_source>
     <reference_fraction>Population average: 50% (weighted by age)</reference_fraction>

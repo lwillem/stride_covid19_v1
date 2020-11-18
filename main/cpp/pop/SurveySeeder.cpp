@@ -42,10 +42,16 @@ shared_ptr<Population> SurveySeeder::Seed(shared_ptr<Population> pop)
         if (logLevel != "None") {
                 Population& population  = *pop;
                 const auto  popCount    = static_cast<unsigned int>(population.size() - 1);
-                const auto  numSurveyed = m_config.get<unsigned int>("run.num_participants_survey");
+                auto  numSurveyed = m_config.get<unsigned int>("run.num_participants_survey");
 
                 assert((popCount >= 1U) && "SurveySeeder> Population count zero unacceptable.");
-                assert((popCount >= numSurveyed) && "SurveySeeder> Pop count has to exceed number of surveyed.");
+                assert((popCount >= numSurveyed) && "SurveySeeder> Pop count has to exceed the number of survey participants.");
+
+                // Make sure the number of survey participants does not outnumber the population size (else no survey)
+                if(popCount < numSurveyed){
+                	numSurveyed = 1;
+
+                }
 
                 // Use while-loop to get 'participants' unique participants (default sampling is with replacement).
                 // A for loop will not do because we might draw the same person twice.
@@ -73,7 +79,7 @@ void SurveySeeder::RegisterParticipant(std::shared_ptr<Population> pop, Person& 
 
 	const string logLevel = m_config.get<string>("run.event_log_level", "None");
 	if (logLevel != "None") {
-		 Population& population  = *pop;
+		Population& population  = *pop;
 
 		auto&       poolSys     = population.CRefPoolSys();
 		auto&       logger      = population.RefEventLogger();

@@ -39,12 +39,13 @@ using namespace std;
 // Default constructor
 PublicHealthAgency::PublicHealthAgency(): m_telework_probability(0),m_detection_probability(0),
 		m_tracing_efficiency_household(0),m_tracing_efficiency_other(0),m_case_finding_capacity(0),m_delay_isolation_index(0),m_delay_contact_tracing(0),
-		m_test_false_negative(0),  m_school_system_adjusted(false)
+		m_test_false_negative(0)
 	{}
 
 void PublicHealthAgency::Initialize(const ptree& config){
 	m_telework_probability        = config.get<double>("run.telework_probability",0);
 	m_detection_probability       = config.get<double>("run.detection_probability",0);
+
 	m_tracing_efficiency_household = config.get<double>("run.tracing_efficiency_household",0);
 	m_tracing_efficiency_other     = config.get<double>("run.tracing_efficiency_other",0);
 
@@ -54,13 +55,10 @@ void PublicHealthAgency::Initialize(const ptree& config){
 	m_delay_contact_tracing  = config.get<unsigned int>("run.delay_contact_tracing",1);
 	m_test_false_negative    = config.get<double>("run.test_false_negative",0.3);
 
-	m_school_system_adjusted = config.get<unsigned int>("run.school_system_adjusted",0) == 1;
-
 	// account for false negative tests
 	m_detection_probability        *= (1.0 - m_test_false_negative);
 	m_tracing_efficiency_household  *= (1.0 - m_test_false_negative);
 	m_tracing_efficiency_other      *= (1.0 - m_test_false_negative);
-
 }
 
 void PublicHealthAgency::SetTelework(std::shared_ptr<Population> pop, util::RnMan& rnMan)
@@ -73,49 +71,8 @@ void PublicHealthAgency::SetTelework(std::shared_ptr<Population> pop, util::RnMa
 	}
 }
 
-bool PublicHealthAgency::IsK12SchoolOff(unsigned int age, bool isPreSchoolOff,
-		bool isPrimarySchoolOff, bool isSecondarySchoolOff, bool isCollegeOff){
-
-	if(isPreSchoolOff && isPrimarySchoolOff && isSecondarySchoolOff){
-		return true;
-	}
-
-	// apply adjusted scheme based on covid-19 exit strategies?
-	if(m_school_system_adjusted){
-
-		// note: use school types to differentiate in timing, with specific ages
-		// "pre-school"       => 4 days/week: 1th and 2th year primary school + children in daycare (0-2y)
-		// "primary school"   => 2 days/week: 6th of primary school
-		// "secondary school" => 1 day/week:  6th of secondary school
-		// "college"          => stay closed
-
-		if(!isPreSchoolOff && age <= 2) { return false; }
-		if(!isPreSchoolOff && age == 6)  { return false; }
-		if(!isPreSchoolOff && age == 7)  { return false; }
-
-		if(!isPrimarySchoolOff && age == 11) { return false; }
-
-		if(!isSecondarySchoolOff && age == 17) { return false; }
-
-		if(!isCollegeOff) { return false; }
-
-
-	} else {// note: use school types to differentiate in timing, with regular age groups
-			if(!isPreSchoolOff && age < 6)                     {  return false; } //TODO : fix hardcoded age intervals
-			if(!isPrimarySchoolOff && age < 12 && age >= 6)    {  return false; }
-			if(!isSecondarySchoolOff && age < 18 && age >= 12) {  return false; }
-	}
-
-	return true;
-
-
-
-}
-
 bool PublicHealthAgency::IsContactTracingActive(const std::shared_ptr<Calendar> calendar) const {
-
 	return (m_detection_probability > 0) && calendar->IsContactTracingActivated();
-
 }
 
 
@@ -130,8 +87,6 @@ void PublicHealthAgency::PerformContactTracing(std::shared_ptr<Population> pop, 
 
 	//cout << m_detection_probability << " -- "<< m_tracing_efficiency_household << " -- "<< m_tracing_efficiency_other << " ** " << m_case_finding_capacity << endl;
 
-	auto& logger       = pop->RefEventLogger();
-	const auto  simDay = calendar->GetSimulationDay();
 
 	/// Mark index cases for track&trace
 	for (auto& p_case : *pop) {
@@ -150,9 +105,30 @@ void PublicHealthAgency::PerformContactTracing(std::shared_ptr<Population> pop, 
 	for (auto& p_case : *pop) {
 
 		if (p_case.IsTracingIndexCase() && p_case.GetHealth().NumberDaysSymptomatic(m_delay_isolation_index)	) {
+        Trace(p_case, pop, cHandler, calendar);  
 
-			// set index case in quarantine
-			p_case.GetHealth().StartIsolation(0);
+        // update index case counter, and terminate if quota is reached
+        num_index_cases++;
+        if(num_index_cases >= m_case_finding_capacity){
+            return;
+        }
+       } 
+	}
+}
+
+//TODO: rename IsolateAndTrace()
+void PublicHealthAgency::Trace(Person& p_case, 
+        std::shared_ptr<Population> pop, 
+        ContactHandler& cHandler,
+        const std::shared_ptr<Calendar> calendar)
+{
+	auto& logger       = pop->RefEventLogger();
+	const auto  simDay = calendar->GetSimulationDay();
+
+			// Set index case in quarantine.
+		    // As this individual tested positive, he/she is isolated for 7 days.
+		     	unsigned int start = simDay + 1; //start tomorrow
+			p_case.Isolate(simDay, start, start+7);
 
 			// counter for number of contacts tested
 			unsigned int num_contacts_tested = 0;
@@ -204,7 +180,8 @@ void PublicHealthAgency::PerformContactTracing(std::shared_ptr<Population> pop, 
 
 					if(p_contact->GetHealth().IsInfected()){
 						// start isolation over X days
-						p_contact->GetHealth().StartIsolation(m_delay_contact_tracing);
+					    unsigned int start = simDay + m_delay_contact_tracing;
+						p_contact->Isolate(simDay, start, start + 7);
 
 						// add to log (TODO: check log_level)
 						logger->info("[TRACE] {} {} {} {} {} {} {} {} {} {}",
@@ -227,15 +204,6 @@ void PublicHealthAgency::PerformContactTracing(std::shared_ptr<Population> pop, 
 						 p_case.GetHealth().IsSymptomatic(),
 						 "Index", p_case.GetId(),
 						 p_case.GetAge(), simDay, cnt_register.size(), num_contacts_tested);
-
-			// update index case counter, and terminate if quota is reached
-			num_index_cases++;
-			if(num_index_cases >= m_case_finding_capacity){
-				return;
-			}
-		}
-	}
 }
-
 
 } // namespace stride

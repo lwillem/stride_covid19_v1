@@ -10,7 +10,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with the software. If not, see <http://www.gnu.org/licenses/>.
  *
- *  Copyright 2020, Kuylen E, Willem L, Broeckhove J
+ *  Copyright 2020, Willem L, Kuylen E, Broeckhove J, Libin P
  */
 
 /**
@@ -21,6 +21,7 @@
 #include "Calendar.h"
 
 #include "util/FileSys.h"
+#include "util/StringUtils.h"
 
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
@@ -32,23 +33,31 @@ using namespace boost::property_tree::json_parser;
 using namespace stride::util;
 using boost::property_tree::ptree;
 
-#ifdef BOOST_FOUND
 
-Calendar::Calendar(const ptree& configPt) :
-		m_date(), m_public_holidays(), m_preschool_holidays(), m_primary_school_holidays(),
-		  m_secondary_school_holidays(), m_college_holidays(), m_workplace_distancing(),
-		  m_community_distancing(), m_contact_tracing(), m_household_clustering(), m_day(0U)
+Calendar::Calendar(const ptree& configPt,unsigned int num_days) :
+		m_date(), m_date_start(), m_date_end(), m_public_holidays(num_days),
+		m_workplace_distancing(num_days), m_community_distancing(num_days), m_contact_tracing(num_days),
+		m_universal_testing(num_days), m_household_clustering(num_days), m_imported_cases(num_days,0U),
+		m_school_closures(100, vector<bool>(num_days))
 {
         // Set start date
         m_date = boost::gregorian::from_simple_string(configPt.get<string>("run.start_date", "2020-01-01"));
+        m_date_start = m_date;
+        m_date_end = m_date + boost::gregorian::days(num_days);
 
-        // Set holidays & school holidays
-        Initialize(configPt);
+        string holiday_file = configPt.get<string>("run.holidays_file", "holidays_belgium_2019_2021.csv");
+        string csv_extension = "csv";
+
+		// temporary switch
+		if (IsSubstring(holiday_file, csv_extension)){
+			Initialize_csv(configPt);   // csv file
+		} else{
+			Initialize(configPt);       // json file => default
+		}
 }
 
 void Calendar::AdvanceDay()
 {
-        m_day++;
         m_date = m_date + boost::gregorian::date_duration(1);
 }
 
@@ -58,22 +67,43 @@ size_t Calendar::GetDayOfTheWeek() const { return m_date.day_of_week(); }
 
 size_t Calendar::GetMonth() const { return m_date.month(); }
 
-unsigned short int Calendar::GetSimulationDay() const { return m_day; }
+unsigned short int Calendar::GetSimulationDay() const {
+
+	return GetDayIndex(m_date);
+}
+
+
+unsigned short int Calendar::GetDayIndex(boost::gregorian::date date) const{
+
+	if(date == m_date_start){ return 0; }
+
+	return (date - m_date_start).days();
+}
+
+unsigned short int Calendar::GetDayIndex(std::string date) const{
+
+	return GetDayIndex(boost::gregorian::from_simple_string(date));
+}
+
 
 size_t Calendar::GetYear() const { return m_date.year(); }
 
+
+
+
 void Calendar::Initialize(const ptree& configPt)
 {
-        // Load json file
+		// include warning
+		std::cout << "WARNING: JSON CALENDAR FILES WILL NOT BE SUPPORTED IN FUTURE VERSIONS... PLEASE SWITCH TO CSV" << std::endl;
+
+		// Load json file
         ptree holidaysPt;
-        {
-                const string        fName{configPt.get<string>("run.holidays_file", "holidays_flanders_2020.json")};
-                const filesys::path fPath{FileSys::GetDataDir() /= fName};
-                if (!is_regular_file(fPath)) {
-                        throw runtime_error(string(__func__) + "Holidays file " + fPath.string() + " not present.");
-                }
-                read_json(fPath.string(), holidaysPt);
-        }
+		const string        fName{configPt.get<string>("run.holidays_file", "holidays_flanders_2020.json")};
+		const filesys::path fPath{FileSys::GetDataDir() /= fName};
+		if (!is_regular_file(fPath)) {
+				throw runtime_error(string(__func__) + "Holidays file " + fPath.string() + " not present.");
+		}
+		read_json(fPath.string(), holidaysPt);
 
         // Read in holidays
         for (int i = 1; i < 13; i++) {
@@ -83,221 +113,201 @@ void Calendar::Initialize(const ptree& configPt)
 
                 // read in general holidays
                 for (const auto& date : holidaysPt.get_child("general." + month)) {
-                        const auto d = string(lead).append(date.second.get_value<string>());
-                        m_public_holidays.push_back(boost::gregorian::from_simple_string(d));
+                        const auto d_date = string(lead).append(date.second.get_value<string>());
+                         if(IsDatePartOfSimulation(d_date)){
+                        	m_public_holidays[GetDayIndex(d_date)] = true;
+                        }
                 }
 
                 // read in pre-school holidays
                 for (const auto& date : holidaysPt.get_child("preschool." + month)) {
-                        const string d = string(lead).append(date.second.get_value<string>());
-                        m_preschool_holidays.push_back(boost::gregorian::from_simple_string(d));
+                        const auto d_date = string(lead).append(date.second.get_value<string>());
+						if(IsDatePartOfSimulation(d_date)){
+							for(int i = 0; i<= 6;i ++){
+								m_school_closures[i][GetDayIndex(d_date)] = true;
+							}
+						}
                 }
                 // read in primary school holidays
 				for (const auto& date : holidaysPt.get_child("primary_school." + month)) {
-						const string d = string(lead).append(date.second.get_value<string>());
-						m_primary_school_holidays.push_back(boost::gregorian::from_simple_string(d));
+						const auto d_date = string(lead).append(date.second.get_value<string>());
+						if(IsDatePartOfSimulation(d_date)){
+							for(int i = 6; i<= 11;i ++){
+								m_school_closures[i][GetDayIndex(d_date)] = true;
+							}						}
 				}
 
                 // read in secondary school holidays
 				for (const auto& date : holidaysPt.get_child("secondary_school." + month)) {
-						const string d = string(lead).append(date.second.get_value<string>());
-						m_secondary_school_holidays.push_back(boost::gregorian::from_simple_string(d));
+						const auto d_date = string(lead).append(date.second.get_value<string>());
+						if(IsDatePartOfSimulation(d_date)){
+							for(int i = 12; i<= 17;i ++){
+								m_school_closures[i][GetDayIndex(d_date)] = true;
+							}
+						}
 				}
 
 				// read in college holidays
                 for (const auto& date : holidaysPt.get_child("college." + month)) {
-                        const string d = string(lead).append(date.second.get_value<string>());
-                        m_college_holidays.push_back(boost::gregorian::from_simple_string(d));
+						const auto d_date = string(lead).append(date.second.get_value<string>());
+						if(IsDatePartOfSimulation(d_date)){
+							for(int i = 18; i<= 25;i ++){
+								m_school_closures[i][GetDayIndex(d_date)] = true;
+							}
+
+						}
+
                 }
                 // read in work place distancing data (if present)
                 if(holidaysPt.count("workplace_distancing") != 0){
 					for (const auto& date : holidaysPt.get_child("workplace_distancing." + month)) {
-							const string d = string(lead).append(date.second.get_value<string>());
-							m_workplace_distancing.push_back(boost::gregorian::from_simple_string(d));
+							const auto d_date = string(lead).append(date.second.get_value<string>());
+							if(IsDatePartOfSimulation(d_date)){
+								m_workplace_distancing[GetDayIndex(d_date)] = true;
+							}
 					}
                 }
 
                 // read in community distancing data (if present)
 				if(holidaysPt.count("community_distancing") != 0){
 					for (const auto& date : holidaysPt.get_child("community_distancing." + month)) {
-							const string d = string(lead).append(date.second.get_value<string>());
-							m_community_distancing.push_back(boost::gregorian::from_simple_string(d));
+							const auto d_date = string(lead).append(date.second.get_value<string>());
+							if(IsDatePartOfSimulation(d_date)){
+								m_community_distancing[GetDayIndex(d_date)] = true;
+							}
+
 					}
 				}
 
 				// read in contact tracing data (if present)
 				if(holidaysPt.count("contact_tracing") != 0){
 					for (const auto& date : holidaysPt.get_child("contact_tracing." + month)) {
-							const string d = string(lead).append(date.second.get_value<string>());
-							m_contact_tracing.push_back(boost::gregorian::from_simple_string(d));
+							const auto d_date = string(lead).append(date.second.get_value<string>());
+							if(IsDatePartOfSimulation(d_date)){
+								m_contact_tracing[GetDayIndex(d_date)] = true;
+							}
+
 					}
 				}
 
-				// read in contact tracing data (if present)
+				// read in universal testing data (if present)
+				if(holidaysPt.count("universal_testing") != 0){
+					for (const auto& date : holidaysPt.get_child("universal_testing." + month)) {
+							const auto d_date = string(lead).append(date.second.get_value<string>());
+							if(IsDatePartOfSimulation(d_date)){
+								m_universal_testing[GetDayIndex(d_date)] = true;
+							}
+
+					}
+				}
+
+				// read in household clustering data (if present)
 				if(holidaysPt.count("household_clustering") != 0){
 					for (const auto& date : holidaysPt.get_child("household_clustering." + month)) {
-							const string d = string(lead).append(date.second.get_value<string>());
-							m_household_clustering.push_back(boost::gregorian::from_simple_string(d));
+							const auto d_date = string(lead).append(date.second.get_value<string>());
+							if(IsDatePartOfSimulation(d_date)){
+								m_household_clustering[GetDayIndex(d_date)] = true;
+							}
+
+					}
+				}
+
+				// read in imported cases
+				if(holidaysPt.count("import_cases") != 0){
+					for (const auto& date : holidaysPt.get_child("import_cases." + month)) {
+						const auto d_date = string(lead).append(date.second.get_value<string>());
+						unsigned int num_cases = configPt.get<unsigned int>("run.num_daily_imported_cases",0);
+						if(IsDatePartOfSimulation(d_date)){
+							m_imported_cases[GetDayIndex(d_date)] = num_cases;
+						}
+					}
+				} else { // if no calendar info present, use the same value throughout the simulation
+					unsigned int num_cases = configPt.get<unsigned int>("run.num_daily_imported_cases",0);
+					for (unsigned int day_index = 0 ; day_index < m_imported_cases.size() ; day_index++){
+						m_imported_cases[day_index] = num_cases;
 					}
 				}
         }
 }
 
-#else
-
-date::year_month_day ConvertFromString(const string& day)
+void Calendar::Initialize_csv(const ptree& configPt)
 {
-        tm           timeinfo{};
-        stringstream ss(day);
-        ss >> get_time(&timeinfo, "%Y-%m-%d");
-        auto date = date::year{timeinfo.tm_year + 1900} / date::month{static_cast<unsigned int>(timeinfo.tm_mon + 1)} /
-                    date::day{static_cast<unsigned int>(timeinfo.tm_mday)};
-        return date;
-}
+        // Load csv file
+		const auto fileName = configPt.get<string>("run.holidays_file", "holidays_belgium_2019_2021.csv");
+		const filesys::path filePath{FileSys::GetDataDir() /= fileName};
+		if (!is_regular_file(filePath)) {
+				throw runtime_error(string(__func__) + "> Holidays file " + filePath.string() + " not present.");
+		}
 
-Calendar::Calendar(const boost::property_tree::ptree& configPt)
-    : m_date(), m_public_holidays(), m_preschool_holidays(),m_primary_school_holidays(),
-	  m_secondary_school_holidays(), m_college_holidays(), m_distancing_workplace(),
-	  m_community_distancing(), m_contact_tracing(), m_household_clustering(), m_day(static_cast<size_t>(0))
-{
-        const string start_date{configPt.get<string>("run.start_date", "2020-01-01")};
-        // Set start date
-        m_date = ConvertFromString(start_date);
-        // Set holidays & school holidays
-        Initialize(configPt);
-}
+        ifstream calendarFile;
+		calendarFile.open(filePath.string());
+		if (!calendarFile.is_open()) {
+				throw runtime_error(string(__func__) + "> Error when opening calendar file " + filePath.string());
+		}
 
-void Calendar::AdvanceDay()
-{
-        m_day++;
-        m_date = static_cast<date::year_month_day>(static_cast<date::sys_days>(m_date) + date::days(1));
-}
+		// do we need to add "imported cases" later on?
+		bool bool_no_imported_cases_dates = true;
 
-void Calendar::Initialize(const ptree& configPt)
-{
-        // Load json file
-        ptree holidaysPt;
-        {
-                const string           fName{configPt.get<string>("run.holidays_file", "holidays_flanders_2020.json")};
-                const filesystem::path fPath{FileSys::GetDataDir() /= fName};
-                if (!is_regular_file(fPath)) {
-                        throw runtime_error(string(__func__) + "Holidays file " + fPath.string() + " not present.");
-                }
-                read_json(fPath.string(), holidaysPt);
-        }
+		string line;
+		getline(calendarFile, line); // step over file header
 
-        // Read in calendar data
-        for (int i = 1; i < 13; i++) {
-                const auto month = to_string(i);
-                const auto year  = holidaysPt.get<string>("year", "2020");
+		// set and check line separator
+		string line_sep = ",";
+		if(!IsSubstring(line, line_sep)){
+			throw runtime_error(string(__func__) + "> Error when parsing calendar file " + filePath.string() + ": no separator ',' present");
+		}
 
-                //TODO: fix code duplication
+		while (getline(calendarFile, line)) {
 
-                // read in general holidays
-                for (const auto& date : holidaysPt.get_child("general." + month)) {
-                        stringstream d;
-                        /// Append zero's due to a bug in stdc++ https://gcc.gnu.org/bugzilla/show_bug.cgi?id=45896
-                        d << year << "-" << setw(2) << setfill('0') << month << "-" << setw(2) << setfill('0')
-                          << date.second.get_value<string>();
-                        m_public_holidays.push_back(ConvertFromString(d.str()));
-                }
+				const auto calendar_item        = Split(line, line_sep);
+				const auto category             = FromString<string>(calendar_item[0]);
+				const auto date_str             = FromString<string>(calendar_item[1]);
+				const auto value                = FromString<bool>(calendar_item[2]);
+				//const auto type                 = FromString<string>(calendar_item[3]);
+				const auto age                  = FromString<unsigned int>(calendar_item[4]);
 
-                // read in pre-school closure
-                for (const auto& date : holidaysPt.get_child("preschool." + month)) {
-                        stringstream d;
-                        /// Append zero's due to a bug in stdc++ https://gcc.gnu.org/bugzilla/show_bug.cgi?id=45896
-                        d << year << "-" << setw(2) << setfill('0') << month << "-" << setw(2) << setfill('0')
-                          << date.second.get_value<string>();
-                        m_preschool_holidays.push_back(ConvertFromString(d.str()));
-                }
+				// convert date
+				const auto date = boost::gregorian::from_simple_string(date_str);
 
-                // read in primary school closure
-				for (const auto& date : holidaysPt.get_child("primary_school." + month)) {
-						stringstream d;
-						/// Append zero's due to a bug in stdc++ https://gcc.gnu.org/bugzilla/show_bug.cgi?id=45896
-						d << year << "-" << setw(2) << setfill('0') << month << "-" << setw(2) << setfill('0')
-						  << date.second.get_value<string>();
-						m_primary_school_holidays.push_back(ConvertFromString(d.str()));
-				}
+				// check date
+				if(IsDatePartOfSimulation(date_str)){
 
-				// read in secondary school closure
-				for (const auto& date : holidaysPt.get_child("secondary_school." + month)) {
-						stringstream d;
-						/// Append zero's due to a bug in stdc++ https://gcc.gnu.org/bugzilla/show_bug.cgi?id=45896
-						d << year << "-" << setw(2) << setfill('0') << month << "-" << setw(2) << setfill('0')
-						  << date.second.get_value<string>();
-						m_secondary_school_holidays.push_back(ConvertFromString(d.str()));
-				}
+					// convert value into boolean
+					const bool value_boolean = value == 1.0;
 
-
-                // read in college holidays
-                for (const auto& date : holidaysPt.get_child("college." + month)) {
-                        stringstream d;
-                        /// Append zero's due to a bug in stdc++ https://gcc.gnu.org/bugzilla/show_bug.cgi?id=45896
-                        d << year << "-" << setw(2) << setfill('0') << month << "-" << setw(2) << setfill('0')
-                          << date.second.get_value<string>();
-                        m_college_holidays.push_back(ConvertFromString(d.str()));
-                }
-
-                // read in workplace distancing data (if present)
-                if(holidaysPt.count("workplace_distancing") != 0){
-                	for (const auto& date : holidaysPt.get_child("workplace_distancing." + month)) {
-							stringstream d;
-							/// Append zero's due to a bug in stdc++ https://gcc.gnu.org/bugzilla/show_bug.cgi?id=45896
-							d << year << "-" << setw(2) << setfill('0') << month << "-" << setw(2) << setfill('0')
-							  << date.second.get_value<string>();
-							m_workplace_distancing.push_back(ConvertFromString(d.str()));
+					if(category == "general")              {  m_public_holidays[GetDayIndex(date)] = value_boolean; }
+					if(category == "schools_closed")       {  m_school_closures[age][GetDayIndex(date)] = value; }
+					if(category == "workplace_distancing") {  m_workplace_distancing[GetDayIndex(date)] = value_boolean; }
+					if(category == "community_distancing") {  m_community_distancing[GetDayIndex(date)] = value_boolean; }
+					if(category == "household_clustering") {  m_household_clustering[GetDayIndex(date)] = value_boolean; }
+					if(category == "contact_tracing")      {  m_contact_tracing[GetDayIndex(date)] = value_boolean; }
+					if(category == "universal_testing")    {  m_universal_testing[GetDayIndex(date)] = value_boolean; }
+					if(category == "imported_cases")
+					{
+						unsigned int num_cases = configPt.get<unsigned int>("run.num_daily_imported_cases",0);
+						m_imported_cases[GetDayIndex(date)] = num_cases;
 					}
-                }
-                // read in community distancing data (if present)
-				if(holidaysPt.count("community_distancing") != 0){
-					for (const auto& date : holidaysPt.get_child("community_distancing." + month)) {
-							stringstream d;
-							/// Append zero's due to a bug in stdc++ https://gcc.gnu.org/bugzilla/show_bug.cgi?id=45896
-							d << year << "-" << setw(2) << setfill('0') << month << "-" << setw(2) << setfill('0')
-							  << date.second.get_value<string>();
-							m_community_distancing.push_back(ConvertFromString(d.str()));
-					}
-				}
 
-				// read in case_finding data (if present)
-				if(holidaysPt.count("contact_tracing") != 0){
-					for (const auto& date : holidaysPt.get_child("contact_tracing." + month)) {
-							stringstream d;
-							/// Append zero's due to a bug in stdc++ https://gcc.gnu.org/bugzilla/show_bug.cgi?id=45896
-							d << year << "-" << setw(2) << setfill('0') << month << "-" << setw(2) << setfill('0')
-							  << date.second.get_value<string>();
-							m_contact_tracing.push_back(ConvertFromString(d.str()));
-					}
-				}
+				} // end if valid date
 
-				// read in household_clustering data (if present)
-				if(holidaysPt.count("household_clustering") != 0){
-					for (const auto& date : holidaysPt.get_child("household_clustering." + month)) {
-							stringstream d;
-							/// Append zero's due to a bug in stdc++ https://gcc.gnu.org/bugzilla/show_bug.cgi?id=45896
-							d << year << "-" << setw(2) << setfill('0') << month << "-" << setw(2) << setfill('0')
-							  << date.second.get_value<string>();
-							m_household_clustering.push_back(ConvertFromString(d.str()));
-					}
+				// check if "imported cases" is present in the calendar file
+				if(category == "imported_cases"){
+					bool_no_imported_cases_dates = false;
 				}
+			} // end iteration over all lines
 
-        }
+
+		// special case if "imported cases" is not present in the calendar file
+		if(bool_no_imported_cases_dates){
+			unsigned int num_cases = configPt.get<unsigned int>("run.num_daily_imported_cases",0);
+			for (unsigned int day_index = 0 ; day_index < m_imported_cases.size() ; day_index++){
+				m_imported_cases[day_index] = num_cases;
+			}
+		}
+
+		// close file stream
+		calendarFile.close();
 }
 
-size_t Calendar::GetDay() const { return static_cast<unsigned int>(m_date.day()); }
-
-size_t Calendar::GetDayOfTheWeek() const
-{
-        return static_cast<unsigned>(static_cast<date::year_month_weekday>(m_date).weekday());
-}
-
-size_t Calendar::GetMonth() const { return static_cast<unsigned int>(m_date.month()); }
-
-unsigned short int Calendar::GetSimulationDay() const { return m_day; }
-
-size_t Calendar::GetYear() const { return static_cast<size_t>(static_cast<int>(m_date.year())); }
-
-#endif
 
 } // namespace stride

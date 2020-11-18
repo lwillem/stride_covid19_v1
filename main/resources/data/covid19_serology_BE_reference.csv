@@ -1,0 +1,6 @@
+collection_date_start,collection_date_end,days_seroconversion,seroprevalence_mean,seroprevalence_low,seroprevalence_high,reference
+2020-03-30,2020-04-05,14,0.029,0.023,0.036,"Herzog et al, Medrxiv, 2020"
+2020-04-20,2020-04-26,14,0.060,0.051,0.071,"Herzog et al, Medrxiv, 2020"
+2020-05-18,2020-05-25,14,0.069,0.059,0.080,"Herzog et al, Medrxiv, 2020"
+2020-06-08,2020-06-13,14,0.055,0.047,0.065,"Herzog et al, Medrxiv, 2020"
+2020-06-29,2020-07-04,14,0.045,0.037,0.054,"Herzog et al, Medrxiv, 2020"

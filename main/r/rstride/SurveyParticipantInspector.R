@@ -13,7 +13,7 @@
 #  see http://www.gnu.org/licenses/.
 #
 #
-#  Copyright 2020, Willem L, Kuylen E & Broeckhove J
+#  Copyright 2020, Willem L
 ############################################################################ #
 
 ############################################################################# #
@@ -49,6 +49,9 @@ inspect_participant_data <- function(project_dir, save_pdf = TRUE)
   # open pdf stream
   if(save_pdf) .rstride$create_pdf(project_dir,'survey_participant_inspection',10,7)
 
+  # set maximum number of days symtomatic/infectious 
+  max_days_infection <- max(c(30,unlist(data_participants_all[,c("end_infectiousness","end_symptomatic")])),na.rm=T)
+  
   i_config <- 1
   for(i_config in 1:nrow(input_opt_design))
   {
@@ -60,6 +63,11 @@ inspect_participant_data <- function(project_dir, save_pdf = TRUE)
     data_part           <- .rstride$load_aggregated_output(project_dir,'data_participants',project_summary$exp_id[flag_exp])
     num_runs_exp        <- sum(flag_exp)
 
+    # check if participant data is avaiable, if not, go to next iteration
+    if(nrow(data_part)==0){
+      next
+    }
+    
     # adjust type of column
     data_part$start_symptomatic  <- as.numeric(data_part$start_symptomatic)
     data_part$end_infectiousness <- as.numeric(data_part$end_infectiousness)
@@ -73,21 +81,21 @@ inspect_participant_data <- function(project_dir, save_pdf = TRUE)
     freq_start_inf  <- table(data_part$start_infectiousness) / num_part
     freq_start_symp <- table(data_part$start_symptomatic)    / num_part
     data_part[1,]
-    all_inf <- matrix(0,num_part,30)
-    all_symp <- matrix(0,num_part,30)
+    all_inf  <- matrix(0,num_part,max_days_infection)
+    all_symp <- matrix(0,num_part,max_days_infection)
     #note: if start == end, no infectious/symptomatic stage has been present
     for(i in 1:num_part){
       all_inf[i,data_part$start_infectiousness[i]:data_part$end_infectiousness[i]] <- 1
       if(!is.na(data_part$start_symptomatic[i]))
       all_symp[i,data_part$start_symptomatic[i]:data_part$end_symptomatic[i]] <- 1
     }
-  
-    plot(1:30,colMeans(all_inf),
+
+    plot(1:max_days_infection,colMeans(all_inf),
          ylab='population fraction',
          xlab='days since infection',
          type='b',lwd=3,col=2,
          ylim=c(0,1))
-    points(1:30,colMeans(all_symp),lwd=3,col=4,type='b')
+    points(1:max_days_infection,colMeans(all_symp),lwd=3,col=4,type='b')
     legend('topright',c('infectious','symptomatic'),col=c(2,4),lwd=4,cex=0.8)
     abline(v=6:9,lty=3)
     

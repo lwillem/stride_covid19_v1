@@ -53,7 +53,7 @@ exp_design <- expand.grid(r0                            = seq(2.7,2.8,0.1),
                           population_file               = c("pop_belgium600k_c500_teachers_censushh.csv"),
                           age_contact_matrix_file       = "contact_matrix_flanders_conditional_teachers.xml",
                           start_date                    = c('2020-02-22'),
-                          holidays_file                 = "holidays_flanders_2020.json",
+                          holidays_file                 = "holidays_belgium_2019_2021.csv",
                           num_daily_imported_cases      = 0,
                           stringsAsFactors = F)
 

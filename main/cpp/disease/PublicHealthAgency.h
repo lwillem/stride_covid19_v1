@@ -23,6 +23,7 @@
 #include "contact/ContactPool.h"
 #include "contact/ContactHandler.h"
 #include "util/RnMan.h"
+#include "util/FileSys.h"
 #include "util/SegmentedVector.h"
 
 #include <boost/property_tree/ptree_fwd.hpp>
@@ -57,8 +58,15 @@ public:
 		/// Is Contact tracing active today?
 		bool IsContactTracingActive(const std::shared_ptr<Calendar> calendar) const;
 
+        /// Trace one individual
+        void Trace(Person& p_case,
+                std::shared_ptr<Population> pop,
+                ContactHandler& cHandler,
+                const std::shared_ptr<Calendar> calendar);
+
 private:
         double m_telework_probability;    ///< Probability to perform telework (or equivalent) //TODO rename "telework"
+        //contact tracing configuration
         double m_detection_probability;   ///< Detection probability of symptomatic cases.
         double m_tracing_efficiency_household;  ///< Tracing probability for household members
         double m_tracing_efficiency_other;      ///< Tracing probability for non-household members
@@ -66,8 +74,6 @@ private:
         unsigned int m_delay_isolation_index;         ///< Number of days after symptom onset to perform a clinical test
         unsigned int m_delay_contact_tracing; ///< Number of days after clinical test to start contact tracing
 		double m_test_false_negative;         ///< False negative rate of PCR tests
-
-		bool m_school_system_adjusted;         ///< Apply adjusted school system for pre-, primary and secondary schools?
 };
 
 } // namespace stride
