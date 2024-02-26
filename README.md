@@ -2,7 +2,7 @@
 
 The Stride acronym stands for **S**imulate **tr**ansmission of **i**nfectious **d**is**e**ases.
  
-The Stride-COVID19 V1 project is hosted on [GitHub](https://github.com/lwillem/stride_covid19_v1.git) and has a continous integration cycle at [Travis CI](https://travis-ci.com/lwillem/stride_covid19_v1). The [user manual](https://github.com/lwillem/stride_covid19_v1/blob/master/doc/latex/UserManual.pdf) contains basic info on the project and how to build & use the software. Details on layout, installation, dependencies of the project, licence and platforms that are supported, can be found in the files INSTALL.txt, DEPENDENCIES.txt, LICENSE.txt and PLATFORMS.txt, respectively.
+The Stride-COVID19 V1 project is hosted on [GitHub](https://github.com/lwillem/stride_covid19_v1.git). The [user manual](https://github.com/lwillem/stride_covid19_v1/blob/master/doc/latex/UserManual.pdf) contains basic info on the project and how to build & use the software. Details on layout, installation, dependencies of the project, licence and platforms that are supported, can be found in the files INSTALL.txt, DEPENDENCIES.txt, LICENSE.txt and PLATFORMS.txt, respectively.
 
 We are happy to refer to our paper for more information:
 
@@ -22,5 +22,3 @@ We are happy to refer to our paper for more information:
 * [Synthetic population data for Belgium](https://doi.org/10.5281/zenodo.4485995)
 * [COVID-19 household bubbles](https://doi.org/10.5281/zenodo.4440258)
 * [COVID-19 universal testing](https://doi.org/10.5281/zenodo.4386507)
-
-**Current status** [![Build Status](https://travis-ci.com/lwillem/stride_covid19_v1.svg?token=PmdTgzYvcxspdEatpvHz&branch=master)](https://travis-ci.com/lwillem/stride_covid19_v1)
